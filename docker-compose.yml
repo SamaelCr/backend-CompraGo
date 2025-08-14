@@ -7,13 +7,13 @@ services:
     env_file:
       - .env
     depends_on:
-      db:
+      soc-db:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - astra-network
 
-  db:
+  soc-db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
