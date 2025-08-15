@@ -8,6 +8,7 @@ import (
 type OrderRepository interface {
 	CreateOrder(order *models.Order) (*models.Order, error)
 	GetAllOrders() ([]models.Order, error)
+	GetOrderById(id uint) (*models.Order, error) // <-- AÑADIR
 }
 
 type orderRepository struct {
@@ -31,4 +32,13 @@ func (r *orderRepository) GetAllOrders() ([]models.Order, error) {
 		return nil, err
 	}
 	return orders, nil
+}
+
+// <-- AÑADIR ESTA FUNCIÓN
+func (r *orderRepository) GetOrderById(id uint) (*models.Order, error) {
+	var order models.Order
+	if err := r.db.First(&order, id).Error; err != nil {
+		return nil, err
+	}
+	return &order, nil
 }
