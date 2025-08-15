@@ -27,6 +27,7 @@ func New(orderHandler *handlers.OrderHandler) *gin.Engine {
 		// --- AÑADIR RUTAS DE ÓRDENES ---
 		api.POST("/orders", orderHandler.CreateOrderHandler)
 		api.GET("/orders", orderHandler.GetOrdersHandler)
+		api.GET("/orders/:id", orderHandler.GetOrderByIdHandler)
 		// Aquí añadiremos GET /orders/:id, PUT /orders/:id, etc. más adelante
 	}
 
