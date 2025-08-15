@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt" // <-- AÑADIDO para formatear strings
+	"fmt"
 	"log"
-	"os" // <-- AÑADIDO para leer variables de entorno
+	"os"
 
-	"github.com/gin-gonic/gin" // <-- AÑADIDO para configurar el modo de Gin
+	"github.com/gin-gonic/gin"
 	"github.com/toor/backend/internal/config"
 	"github.com/toor/backend/internal/handlers"
 	"github.com/toor/backend/internal/models"
@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	// 1. Cargar Configuración (ya lee todo el .env)
+	// 1. Cargar Configuración
 	cfg := config.Load()
 
 	// 2. Conectar a la Base de Datos
@@ -24,40 +24,45 @@ func main() {
 
 	// 3. Ejecutar Migraciones
 	log.Println("Running migrations...")
-	if err := db.AutoMigrate(&models.Order{}); err != nil {
+	// Se añade el nuevo modelo SystemCounter a la migración automática
+	if err := db.AutoMigrate(&models.Order{}, &models.SystemCounter{}); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
 	// 4. Inyección de Dependencias (ensamblar las capas)
+
+	// --- Dependencias de Contadores y Admin ---
+	counterRepo := repository.NewCounterRepository(db)
+	counterService := service.NewCounterService(counterRepo)
+	adminHandler := handlers.NewAdminHandler(counterService)
+
+	// --- Dependencias de Órdenes ---
 	orderRepo := repository.NewOrderRepository(db)
-	orderService := service.NewOrderService(orderRepo)
+	// Se inyecta el counterService en el orderService
+	orderService := service.NewOrderService(orderRepo, counterService)
 	orderHandler := handlers.NewOrderHandler(orderService)
 
 	// 5. Configurar y Iniciar el Router
 
-	// --- CAMBIO: Configurar el modo de Gin desde el .env ---
-	// Si GIN_MODE="release", los logs de Gin serán menos verbosos (ideal para producción)
-	// Si GIN_MODE="debug" o no está definido, serán más detallados (ideal para desarrollo)
+	// Configurar el modo de Gin desde el .env
 	ginMode := os.Getenv("GIN_MODE")
 	if ginMode == "" {
 		ginMode = gin.DebugMode // Valor por defecto
 	}
 	gin.SetMode(ginMode)
-	// --- FIN DEL CAMBIO ---
 
-	r := router.New(orderHandler)
+	// Se pasan ambos handlers al constructor del router
+	r := router.New(orderHandler, adminHandler)
 
-	// --- CAMBIO: Leer el puerto desde el .env ---
+	// Leer el puerto desde el .env
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080" // Valor por defecto si la variable PORT no está en .env
 	}
-	// --- FIN DEL CAMBIO ---
 
-	// --- CAMBIO: Usar las variables para iniciar el servidor ---
+	// Iniciar el servidor
 	serverAddress := fmt.Sprintf(":%s", port)
 	log.Printf("Gin mode: %s", ginMode)
 	log.Printf("Starting server on http://localhost%s", serverAddress)
 	log.Fatal(r.Run(serverAddress))
-	// --- FIN DEL CAMBIO ---
 }

@@ -1,34 +1,32 @@
 package router
 
 import (
-	"github.com/gin-contrib/cors" // <-- AÑADIR IMPORT
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/toor/backend/internal/handlers"
 )
 
-// La función New ahora recibe el handler de órdenes
-func New(orderHandler *handlers.OrderHandler) *gin.Engine {
+// La función New ahora recibe el handler de órdenes y el de admin
+func New(orderHandler *handlers.OrderHandler, adminHandler *handlers.AdminHandler) *gin.Engine {
 	r := gin.Default()
 
-	// --- AÑADIR CONFIGURACIÓN DE CORS ---
-	// Permitirá que tu frontend en localhost:4321 hable con este backend
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:4321"} // URL de tu frontend Astro
+	config.AllowOrigins = []string{"http://localhost:4321"}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	r.Use(cors.New(config))
-	// ------------------------------------
 
-	// Agrupamos las rutas de la API
 	api := r.Group("/api")
 	{
-		// Ruta de prueba
 		api.GET("/ping", handlers.Ping)
 
-		// --- AÑADIR RUTAS DE ÓRDENES ---
+		// Rutas de Órdenes
 		api.POST("/orders", orderHandler.CreateOrderHandler)
 		api.GET("/orders", orderHandler.GetOrdersHandler)
 		api.GET("/orders/:id", orderHandler.GetOrderByIdHandler)
-		// Aquí añadiremos GET /orders/:id, PUT /orders/:id, etc. más adelante
+		admin := api.Group("/admin")
+		{
+			admin.POST("/reset-counters", adminHandler.ResetCountersHandler)
+		}
 	}
 
 	return r
