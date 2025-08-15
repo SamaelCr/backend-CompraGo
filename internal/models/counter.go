@@ -1,8 +1,3 @@
-IGNORE_WHEN_COPYING_START
-IGNORE_WHEN_COPYING_END
-
-    
-// internal/models/counter.go
 package models
 
 import "gorm.io/gorm"

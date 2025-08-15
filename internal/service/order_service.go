@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"github.com/toor/backend/internal/models"
 	"github.com/toor/backend/internal/repository"
 )
@@ -8,15 +9,14 @@ import (
 type OrderService interface {
 	CreateOrder(order *models.Order) (*models.Order, error)
 	GetAllOrders() ([]models.Order, error)
-    GetOrderById(id uint) (*models.Order, error)
+	GetOrderById(id uint) (*models.Order, error)
 }
 
 type orderService struct {
 	repo           repository.OrderRepository
-	counterService CounterService // <-- AÑADIDO: Inyección del servicio de contadores
+	counterService CounterService
 }
 
-// <-- MODIFICADO: El constructor ahora requiere el counterService
 func NewOrderService(repo repository.OrderRepository, counterService CounterService) OrderService {
 	return &orderService{
 		repo:           repo,
@@ -26,21 +26,18 @@ func NewOrderService(repo repository.OrderRepository, counterService CounterServ
 
 func (s *orderService) CreateOrder(order *models.Order) (*models.Order, error) {
 	// --- LÓGICA DE NEGOCIO PARA GENERAR CORRELATIVO ---
-	// Se genera un nuevo número de memorando automáticamente.
-	// El valor que venga del frontend en `order.MemoNumber` será ignorado.
 	newMemoNumber, err := s.counterService.GenerateNextID("MEMO")
 	if err != nil {
+		// Aquí es donde se usa `fmt.Errorf`, causando el error
 		return nil, fmt.Errorf("could not generate memo number: %w", err)
 	}
 	order.MemoNumber = newMemoNumber
 	// --------------------------------------------------
 
 	// --- LÓGICA DE NEGOCIO EXISTENTE ---
-	// Calcular IVA y Total automáticamente
-	order.IvaAmount = order.BaseAmount * 0.16 // Asumimos 16% de IVA
+	order.IvaAmount = order.BaseAmount * 0.16
 	order.TotalAmount = order.BaseAmount + order.IvaAmount
 
-	// Arrastrar información
 	if order.Subject == "" {
 		order.Subject = order.Concept
 	}
