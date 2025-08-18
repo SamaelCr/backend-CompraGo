@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/toor/backend/internal/models"
@@ -53,6 +54,21 @@ func (h *MasterDataHandler) UpdateUnit(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, updated)
 }
+func (h *MasterDataHandler) DeleteUnit(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+	err := h.service.DeleteUnit(uint(id))
+	if err != nil {
+		// CAMBIO CLAVE: Si es nuestro error de negocio, devolvemos 409 Conflict
+		if strings.Contains(err.Error(), "asignada a uno o más funcionarios") {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		// Para cualquier otro error, devolvemos 500 Internal Server Error
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete unit"})
+		return
+	}
+	c.JSON(http.StatusNoContent, nil)
+}
 
 // --- Positions ---
 func (h *MasterDataHandler) CreatePosition(c *gin.Context) {
@@ -91,6 +107,20 @@ func (h *MasterDataHandler) UpdatePosition(c *gin.Context) {
 	c.JSON(http.StatusOK, updated)
 }
 
+func (h *MasterDataHandler) DeletePosition(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+	err := h.service.DeletePosition(uint(id))
+	if err != nil {
+		if strings.Contains(err.Error(), "asignado a uno o más funcionarios") {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete position"})
+		return
+	}
+	c.JSON(http.StatusNoContent, nil)
+}
+
 // --- Officials ---
 func (h *MasterDataHandler) CreateOfficial(c *gin.Context) {
 	var off models.Official
@@ -126,4 +156,12 @@ func (h *MasterDataHandler) UpdateOfficial(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, updated)
+}
+func (h *MasterDataHandler) DeleteOfficial(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err := h.service.DeleteOfficial(uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete official"})
+		return
+	}
+	c.JSON(http.StatusNoContent, nil)
 }

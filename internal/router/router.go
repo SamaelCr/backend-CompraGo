@@ -52,14 +52,18 @@ func New(
 			master.GET("/units", masterDataHandler.GetUnits)
 			master.POST("/units", masterDataHandler.CreateUnit)
 			master.PUT("/units/:id", masterDataHandler.UpdateUnit)
+			master.DELETE("/units/:id", masterDataHandler.DeleteUnit)
 			// Positions
 			master.GET("/positions", masterDataHandler.GetPositions)
 			master.POST("/positions", masterDataHandler.CreatePosition)
 			master.PUT("/positions/:id", masterDataHandler.UpdatePosition)
+			master.DELETE("/positions/:id", masterDataHandler.DeletePosition)
 			// Officials
 			master.GET("/officials", masterDataHandler.GetOfficials)
 			master.POST("/officials", masterDataHandler.CreateOfficial)
 			master.PUT("/officials/:id", masterDataHandler.UpdateOfficial)
+			master.DELETE("/officials/:id", masterDataHandler.DeleteOfficial)
+
 		}
 	}
 

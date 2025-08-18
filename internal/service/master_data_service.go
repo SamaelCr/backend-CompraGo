@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors" // <-- AÑADIR IMPORT
+
 	"github.com/toor/backend/internal/models"
 	"github.com/toor/backend/internal/repository"
 )
@@ -10,9 +12,8 @@ type UnitService interface {
 	CreateUnit(unit *models.Unit) (*models.Unit, error)
 	GetAllUnits() ([]models.Unit, error)
 	UpdateUnit(id uint, req *models.Unit) (*models.Unit, error)
+	DeleteUnit(id uint) error
 }
-
-// ... (se podrían crear interfaces para Position y Official si crecen en complejidad)
 
 type MasterDataService interface {
 	UnitService // Embeber la interfaz
@@ -20,10 +21,12 @@ type MasterDataService interface {
 	CreatePosition(pos *models.Position) (*models.Position, error)
 	GetAllPositions() ([]models.Position, error)
 	UpdatePosition(id uint, req *models.Position) (*models.Position, error)
+	DeletePosition(id uint) error
 	// Officials
 	CreateOfficial(off *models.Official) (*models.Official, error)
 	GetAllOfficials() ([]models.Official, error)
 	UpdateOfficial(id uint, req *models.Official) (*models.Official, error)
+	DeleteOfficial(id uint) error
 }
 
 type masterDataService struct {
@@ -45,6 +48,17 @@ func (s *masterDataService) UpdateUnit(id uint, req *models.Unit) (*models.Unit,
 	err := s.repo.UpdateUnit(req)
 	return req, err
 }
+func (s *masterDataService) DeleteUnit(id uint) error {
+	inUse, err := s.repo.IsUnitInUse(id)
+	if err != nil {
+		return err // Error al consultar la base de datos
+	}
+	if inUse {
+		// Retornamos un error de negocio específico
+		return errors.New("no se puede eliminar la unidad: está asignada a uno o más funcionarios")
+	}
+	return s.repo.DeleteUnit(id)
+}
 
 func (s *masterDataService) CreatePosition(pos *models.Position) (*models.Position, error) {
 	err := s.repo.CreatePosition(pos)
@@ -57,6 +71,16 @@ func (s *masterDataService) UpdatePosition(id uint, req *models.Position) (*mode
 	req.ID = id
 	err := s.repo.UpdatePosition(req)
 	return req, err
+}
+func (s *masterDataService) DeletePosition(id uint) error {
+	inUse, err := s.repo.IsPositionInUse(id)
+	if err != nil {
+		return err
+	}
+	if inUse {
+		return errors.New("no se puede eliminar el cargo: está asignado a uno o más funcionarios")
+	}
+	return s.repo.DeletePosition(id)
 }
 func (s *masterDataService) CreateOfficial(off *models.Official) (*models.Official, error) {
 	err := s.repo.CreateOfficial(off)
@@ -76,4 +100,7 @@ func (s *masterDataService) UpdateOfficial(id uint, req *models.Official) (*mode
 		}
 	}
 	return req, err
+}
+func (s *masterDataService) DeleteOfficial(id uint) error {
+	return s.repo.DeleteOfficial(id)
 }

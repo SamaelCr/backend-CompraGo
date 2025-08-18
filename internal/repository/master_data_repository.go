@@ -10,14 +10,20 @@ type MasterDataRepository interface {
 	CreateUnit(unit *models.Unit) error
 	GetAllUnits() ([]models.Unit, error)
 	UpdateUnit(unit *models.Unit) error
+	DeleteUnit(id uint) error // <-- AÑADIR
 	// Positions
 	CreatePosition(pos *models.Position) error
 	GetAllPositions() ([]models.Position, error)
 	UpdatePosition(pos *models.Position) error
+	DeletePosition(id uint) error // <-- AÑADIR
 	// Officials
 	CreateOfficial(off *models.Official) error
 	GetAllOfficials() ([]models.Official, error)
 	UpdateOfficial(off *models.Official) error
+	DeleteOfficial(id uint) error // <-- AÑADIR
+
+	IsUnitInUse(unitID uint) (bool, error)
+	IsPositionInUse(positionID uint) (bool, error)
 }
 
 type masterDataRepository struct {
@@ -40,6 +46,9 @@ func (r *masterDataRepository) GetAllUnits() ([]models.Unit, error) {
 func (r *masterDataRepository) UpdateUnit(unit *models.Unit) error {
 	return r.db.Save(unit).Error
 }
+func (r *masterDataRepository) DeleteUnit(id uint) error {
+	return r.db.Delete(&models.Unit{}, id).Error
+}
 
 // Positions
 func (r *masterDataRepository) CreatePosition(pos *models.Position) error {
@@ -52,6 +61,9 @@ func (r *masterDataRepository) GetAllPositions() ([]models.Position, error) {
 }
 func (r *masterDataRepository) UpdatePosition(pos *models.Position) error {
 	return r.db.Save(pos).Error
+}
+func (r *masterDataRepository) DeletePosition(id uint) error {
+	return r.db.Delete(&models.Position{}, id).Error
 }
 
 // Officials
@@ -66,4 +78,25 @@ func (r *masterDataRepository) GetAllOfficials() ([]models.Official, error) {
 }
 func (r *masterDataRepository) UpdateOfficial(off *models.Official) error {
 	return r.db.Save(off).Error
+}
+
+func (r *masterDataRepository) DeleteOfficial(id uint) error {
+	return r.db.Delete(&models.Official{}, id).Error
+}
+func (r *masterDataRepository) IsUnitInUse(unitID uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.Official{}).Where("unit_id = ?", unitID).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *masterDataRepository) IsPositionInUse(positionID uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.Official{}).Where("position_id = ?", positionID).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

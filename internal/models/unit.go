@@ -9,6 +9,6 @@ type Unit struct {
 	UpdatedAt int64          `gorm:"autoUpdateTime" json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Name     string `gorm:"uniqueIndex;not null" json:"name"`
-	IsActive bool   `gorm:"default:true" json:"isActive"` // Para "desactivar" en lugar de borrar
+	Name     string `gorm:"uniqueIndex:idx_units_name_active,where:deleted_at IS NULL;not null" json:"name"`
+	IsActive bool   `gorm:"default:true" json:"isActive"`
 }

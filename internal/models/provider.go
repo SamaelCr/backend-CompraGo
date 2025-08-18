@@ -10,6 +10,6 @@ type Provider struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	Name    string `gorm:"not null" json:"name"`
-	RIF     string `gorm:"uniqueIndex" json:"rif"`
+	RIF     string `gorm:"uniqueIndex:idx_providers_rif_active,where:deleted_at IS NULL" json:"rif"`
 	Address string `json:"address"`
 }
