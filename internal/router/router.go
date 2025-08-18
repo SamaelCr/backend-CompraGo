@@ -6,8 +6,12 @@ import (
 	"github.com/toor/backend/internal/handlers"
 )
 
-// La función New ahora recibe todos los handlers
-func New(orderHandler *handlers.OrderHandler, adminHandler *handlers.AdminHandler, providerHandler *handlers.ProviderHandler) *gin.Engine {
+func New(
+	orderHandler *handlers.OrderHandler,
+	adminHandler *handlers.AdminHandler,
+	providerHandler *handlers.ProviderHandler,
+	masterDataHandler *handlers.MasterDataHandler,
+) *gin.Engine {
 	r := gin.Default()
 
 	config := cors.DefaultConfig()
@@ -40,6 +44,22 @@ func New(orderHandler *handlers.OrderHandler, adminHandler *handlers.AdminHandle
 			providers.GET("/:id", providerHandler.GetProvider)
 			providers.PUT("/:id", providerHandler.UpdateProvider)
 			providers.DELETE("/:id", providerHandler.DeleteProvider)
+		}
+
+		master := api.Group("/master-data")
+		{
+			// Units
+			master.GET("/units", masterDataHandler.GetUnits)
+			master.POST("/units", masterDataHandler.CreateUnit)
+			master.PUT("/units/:id", masterDataHandler.UpdateUnit)
+			// Positions
+			master.GET("/positions", masterDataHandler.GetPositions)
+			master.POST("/positions", masterDataHandler.CreatePosition)
+			master.PUT("/positions/:id", masterDataHandler.UpdatePosition)
+			// Officials
+			master.GET("/officials", masterDataHandler.GetOfficials)
+			master.POST("/officials", masterDataHandler.CreateOfficial)
+			master.PUT("/officials/:id", masterDataHandler.UpdateOfficial)
 		}
 	}
 
