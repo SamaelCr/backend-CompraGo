@@ -11,6 +11,14 @@ services:
     restart: unless-stopped
     networks:
       - astra-network
+    develop:
+      watch:
+        - path: ./cmd
+          action: rebuild
+        - path: ./internal
+          action: rebuild
+        - path: ./go.mod
+          action: rebuild
 
   soc-db:
     image: postgres:16-alpine
