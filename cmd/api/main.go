@@ -24,43 +24,38 @@ func main() {
 
 	// 3. Ejecutar Migraciones
 	log.Println("Running migrations...")
-	// Se añade el nuevo modelo SystemCounter a la migración automática
-	if err := db.AutoMigrate(&models.Order{}, &models.SystemCounter{}); err != nil {
+	if err := db.AutoMigrate(&models.Order{}, &models.SystemCounter{}, &models.Provider{}); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
-	// 4. Inyección de Dependencias (ensamblar las capas)
-
-	// --- Dependencias de Contadores y Admin ---
+	// 4. Inyección de Dependencias
 	counterRepo := repository.NewCounterRepository(db)
 	counterService := service.NewCounterService(counterRepo)
 	adminHandler := handlers.NewAdminHandler(counterService)
 
-	// --- Dependencias de Órdenes ---
 	orderRepo := repository.NewOrderRepository(db)
-	// Se inyecta el counterService en el orderService
 	orderService := service.NewOrderService(orderRepo, counterService)
 	orderHandler := handlers.NewOrderHandler(orderService)
 
-	// 5. Configurar y Iniciar el Router
+	// --- : Dependencias de Proveedores ---
+	providerRepo := repository.NewProviderRepository(db)
+	providerService := service.NewProviderService(providerRepo)
+	providerHandler := handlers.NewProviderHandler(providerService)
 
-	// Configurar el modo de Gin desde el .env
+	// 5. Configurar y Iniciar el Router
 	ginMode := os.Getenv("GIN_MODE")
 	if ginMode == "" {
-		ginMode = gin.DebugMode // Valor por defecto
+		ginMode = gin.DebugMode
 	}
 	gin.SetMode(ginMode)
 
-	// Se pasan ambos handlers al constructor del router
-	r := router.New(orderHandler, adminHandler)
+	r := router.New(orderHandler, adminHandler, providerHandler) // Añadir nuevo handler
 
-	// Leer el puerto desde el .env
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080" // Valor por defecto si la variable PORT no está en .env
+		port = "8080"
 	}
 
-	// Iniciar el servidor
 	serverAddress := fmt.Sprintf(":%s", port)
 	log.Printf("Gin mode: %s", ginMode)
 	log.Printf("Starting server on http://localhost%s", serverAddress)

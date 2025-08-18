@@ -6,8 +6,8 @@ import (
 	"github.com/toor/backend/internal/handlers"
 )
 
-// La función New ahora recibe el handler de órdenes y el de admin
-func New(orderHandler *handlers.OrderHandler, adminHandler *handlers.AdminHandler) *gin.Engine {
+// La función New ahora recibe todos los handlers
+func New(orderHandler *handlers.OrderHandler, adminHandler *handlers.AdminHandler, providerHandler *handlers.ProviderHandler) *gin.Engine {
 	r := gin.Default()
 
 	config := cors.DefaultConfig()
@@ -20,12 +20,26 @@ func New(orderHandler *handlers.OrderHandler, adminHandler *handlers.AdminHandle
 		api.GET("/ping", handlers.Ping)
 
 		// Rutas de Órdenes
-		api.POST("/orders", orderHandler.CreateOrderHandler)
-		api.GET("/orders", orderHandler.GetOrdersHandler)
-		api.GET("/orders/:id", orderHandler.GetOrderByIdHandler)
+		orders := api.Group("/orders")
+		{
+			orders.POST("", orderHandler.CreateOrderHandler)
+			orders.GET("", orderHandler.GetOrdersHandler)
+		}
+
+		// Rutas de Administración
 		admin := api.Group("/admin")
 		{
 			admin.POST("/reset-counters", adminHandler.ResetCountersHandler)
+		}
+
+		// Rutas de Proveedores
+		providers := api.Group("/providers")
+		{
+			providers.POST("", providerHandler.CreateProvider)
+			providers.GET("", providerHandler.GetProviders)
+			providers.GET("/:id", providerHandler.GetProvider)
+			providers.PUT("/:id", providerHandler.UpdateProvider)
+			providers.DELETE("/:id", providerHandler.DeleteProvider)
 		}
 	}
 
