@@ -28,6 +28,7 @@ func New(
 		{
 			orders.POST("", orderHandler.CreateOrderHandler)
 			orders.GET("", orderHandler.GetOrdersHandler)
+			orders.GET("/:id", orderHandler.GetOrderByIdHandler)
 		}
 
 		// Rutas de Administración

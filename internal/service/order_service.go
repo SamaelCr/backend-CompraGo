@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+
 	"github.com/toor/backend/internal/models"
 	"github.com/toor/backend/internal/repository"
 )

@@ -1,16 +1,20 @@
 package storage
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-func MustInit(dsn string) *gorm.DB {
+// MustInit -- FIRMA ACTUALIZADA
+func MustInit(dsn string, logger *slog.Logger) *gorm.DB {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("failed to connect to DB: %v", err)
+		// Usa el logger inyectado en lugar del `log` global
+		logger.Error("failed to connect to database", slog.Any("error", err))
+		os.Exit(1)
 	}
 	return db
 }

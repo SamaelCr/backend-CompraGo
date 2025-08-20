@@ -1,7 +1,6 @@
 package config
 
 import (
-	"log"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -12,9 +11,10 @@ type Config struct {
 }
 
 func Load() *Config {
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using system env vars")
-	}
+	// Intentamos cargar el .env, pero no tratamos la ausencia como un error fatal,
+	// ya que las variables pueden ser provistas por el sistema (ej. Docker Compose).
+	// Se elimina el log de aquí para que el punto de entrada (main) controle todo el logging.
+	_ = godotenv.Load()
 
 	return &Config{
 		DSN: os.Getenv("DSN"),

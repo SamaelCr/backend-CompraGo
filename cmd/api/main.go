@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -16,15 +16,31 @@ import (
 )
 
 func main() {
-	// 1. Cargar Configuración
+	// 1. Configurar Logger Estructurado (slog)
+	ginMode := os.Getenv("GIN_MODE")
+	if ginMode == "" {
+		ginMode = gin.DebugMode
+	}
+	var logger *slog.Logger
+	if ginMode == gin.DebugMode {
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	} else {
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	}
+	slog.SetDefault(logger) // Establecer como logger global por si alguna dependencia lo usa
+
+	// 2. Cargar Configuración
 	cfg := config.Load()
+	if cfg.DSN == "" {
+		logger.Error("DSN environment variable is not set")
+		os.Exit(1)
+	}
 
-	// 2. Conectar a la Base de Datos
-	db := storage.MustInit(cfg.DSN)
+	// 3. Conectar a la Base de Datos
+	db := storage.MustInit(cfg.DSN, logger)
 
-	// 3. Ejecutar Migraciones
-	log.Println("Running migrations...")
-	// Se añaden todos los nuevos modelos a la migración automática
+	// 4. Ejecutar Migraciones
+	logger.Info("Running migrations...")
 	if err := db.AutoMigrate(
 		&models.Order{},
 		&models.SystemCounter{},
@@ -33,10 +49,11 @@ func main() {
 		&models.Position{},
 		&models.Official{},
 	); err != nil {
-		log.Fatalf("failed to migrate database: %v", err)
+		logger.Error("failed to migrate database", slog.Any("error", err))
+		os.Exit(1)
 	}
 
-	// 4. Inyección de Dependencias (ensamblar todas las capas)
+	// 5. Inyección de Dependencias (ensamblar todas las capas)
 
 	// --- Dependencias de Contadores y Admin ---
 	counterRepo := repository.NewCounterRepository(db)
@@ -46,7 +63,8 @@ func main() {
 	// --- Dependencias de Órdenes ---
 	orderRepo := repository.NewOrderRepository(db)
 	orderService := service.NewOrderService(orderRepo, counterService)
-	orderHandler := handlers.NewOrderHandler(orderService)
+	// Se inyecta el logger en el OrderHandler
+	orderHandler := handlers.NewOrderHandler(orderService, logger)
 
 	// --- Dependencias de Proveedores ---
 	providerRepo := repository.NewProviderRepository(db)
@@ -58,11 +76,7 @@ func main() {
 	masterDataService := service.NewMasterDataService(masterDataRepo)
 	masterDataHandler := handlers.NewMasterDataHandler(masterDataService)
 
-	// 5. Configurar y Iniciar el Router
-	ginMode := os.Getenv("GIN_MODE")
-	if ginMode == "" {
-		ginMode = gin.DebugMode
-	}
+	// 6. Configurar y Iniciar el Router
 	gin.SetMode(ginMode)
 
 	// Se pasan todos los handlers al constructor del router
@@ -76,7 +90,13 @@ func main() {
 
 	// Iniciar el servidor
 	serverAddress := fmt.Sprintf(":%s", port)
-	log.Printf("Gin mode: %s", ginMode)
-	log.Printf("Starting server on http://localhost%s", serverAddress)
-	log.Fatal(r.Run(serverAddress))
+	logger.Info("Starting server",
+		slog.String("gin_mode", ginMode),
+		slog.String("address", serverAddress),
+	)
+
+	if err := r.Run(serverAddress); err != nil {
+		logger.Error("server failed to start", slog.Any("error", err))
+		os.Exit(1)
+	}
 }

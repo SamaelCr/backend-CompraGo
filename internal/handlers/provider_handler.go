@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/toor/backend/internal/models"
 	"github.com/toor/backend/internal/service"
+	"github.com/toor/backend/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -28,7 +29,7 @@ type ProviderRequest struct {
 func (h *ProviderHandler) CreateProvider(c *gin.Context) {
 	var req ProviderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
+		utils.WriteError(c, http.StatusBadRequest, "Invalid input: "+err.Error())
 		return
 	}
 
@@ -40,58 +41,58 @@ func (h *ProviderHandler) CreateProvider(c *gin.Context) {
 
 	newProvider, err := h.service.CreateProvider(provider)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create provider"})
+		utils.WriteError(c, http.StatusInternalServerError, "Failed to create provider")
 		return
 	}
 
-	c.JSON(http.StatusCreated, newProvider)
+	utils.WriteJSON(c, http.StatusCreated, newProvider)
 }
 
 func (h *ProviderHandler) GetProviders(c *gin.Context) {
 	providers, err := h.service.GetAllProviders()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve providers"})
+		utils.WriteError(c, http.StatusInternalServerError, "Failed to retrieve providers")
 		return
 	}
-	c.JSON(http.StatusOK, providers)
+	utils.WriteJSON(c, http.StatusOK, providers)
 }
 
 func (h *ProviderHandler) GetProvider(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid provider ID"})
+		utils.WriteError(c, http.StatusBadRequest, "Invalid provider ID")
 		return
 	}
 
 	provider, err := h.service.GetProviderByID(uint(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Provider not found"})
+			utils.WriteError(c, http.StatusNotFound, "Provider not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve provider"})
+		utils.WriteError(c, http.StatusInternalServerError, "Failed to retrieve provider")
 		return
 	}
 
-	c.JSON(http.StatusOK, provider)
+	utils.WriteJSON(c, http.StatusOK, provider)
 }
 
 func (h *ProviderHandler) UpdateProvider(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid provider ID"})
+		utils.WriteError(c, http.StatusBadRequest, "Invalid provider ID")
 		return
 	}
 
 	var req ProviderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
+		utils.WriteError(c, http.StatusBadRequest, "Invalid input: "+err.Error())
 		return
 	}
 
 	providerToUpdate, err := h.service.GetProviderByID(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Provider not found"})
+		utils.WriteError(c, http.StatusNotFound, "Provider not found")
 		return
 	}
 
@@ -101,24 +102,24 @@ func (h *ProviderHandler) UpdateProvider(c *gin.Context) {
 
 	updatedProvider, err := h.service.UpdateProvider(providerToUpdate)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update provider"})
+		utils.WriteError(c, http.StatusInternalServerError, "Failed to update provider")
 		return
 	}
 
-	c.JSON(http.StatusOK, updatedProvider)
+	utils.WriteJSON(c, http.StatusOK, updatedProvider)
 }
 
 func (h *ProviderHandler) DeleteProvider(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid provider ID"})
+		utils.WriteError(c, http.StatusBadRequest, "Invalid provider ID")
 		return
 	}
 
 	if err := h.service.DeleteProvider(uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete provider"})
+		utils.WriteError(c, http.StatusInternalServerError, "Failed to delete provider")
 		return
 	}
 
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
