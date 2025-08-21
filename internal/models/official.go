@@ -1,12 +1,17 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time" // <-- AÑADIR IMPORT
+
+	"gorm.io/gorm"
+)
 
 // Official representa a un Funcionario responsable.
 type Official struct {
-	ID        uint           `gorm:"primarykey" json:"id"`
-	CreatedAt int64          `gorm:"autoCreateTime" json:"createdAt"`
-	UpdatedAt int64          `gorm:"autoUpdateTime" json:"updatedAt"`
+	ID uint `gorm:"primarykey" json:"id"`
+	// MODIFICAR ESTAS DOS LÍNEAS
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	FullName string `gorm:"not null" json:"fullName"`

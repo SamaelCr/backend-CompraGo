@@ -10,17 +10,18 @@ type MasterDataRepository interface {
 	CreateUnit(unit *models.Unit) error
 	GetAllUnits() ([]models.Unit, error)
 	UpdateUnit(unit *models.Unit) error
-	DeleteUnit(id uint) error // <-- AÑADIR
+	DeleteUnit(id uint) error
 	// Positions
 	CreatePosition(pos *models.Position) error
 	GetAllPositions() ([]models.Position, error)
 	UpdatePosition(pos *models.Position) error
-	DeletePosition(id uint) error // <-- AÑADIR
+	DeletePosition(id uint) error
 	// Officials
 	CreateOfficial(off *models.Official) error
 	GetAllOfficials() ([]models.Official, error)
+	GetOfficialByID(id uint) (*models.Official, error) // <-- MODIFICACIÓN: Añadida nueva función
 	UpdateOfficial(off *models.Official) error
-	DeleteOfficial(id uint) error // <-- AÑADIR
+	DeleteOfficial(id uint) error
 
 	IsUnitInUse(unitID uint) (bool, error)
 	IsPositionInUse(positionID uint) (bool, error)
@@ -76,6 +77,16 @@ func (r *masterDataRepository) GetAllOfficials() ([]models.Official, error) {
 	err := r.db.Preload("Unit").Preload("Position").Order("full_name asc").Find(&officials).Error
 	return officials, err
 }
+
+// GetOfficialByID recupera un único funcionario y precarga sus relaciones.
+// MODIFICACIÓN: Añadida nueva función
+func (r *masterDataRepository) GetOfficialByID(id uint) (*models.Official, error) {
+	var official models.Official
+	// Usamos Preload para traer los datos anidados de Unit y Position
+	err := r.db.Preload("Unit").Preload("Position").First(&official, id).Error
+	return &official, err
+}
+
 func (r *masterDataRepository) UpdateOfficial(off *models.Official) error {
 	return r.db.Save(off).Error
 }

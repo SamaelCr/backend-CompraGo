@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -14,10 +15,14 @@ import (
 
 type ProviderHandler struct {
 	service service.ProviderService
+	logger  *slog.Logger
 }
 
-func NewProviderHandler(s service.ProviderService) *ProviderHandler {
-	return &ProviderHandler{service: s}
+func NewProviderHandler(s service.ProviderService, logger *slog.Logger) *ProviderHandler {
+	return &ProviderHandler{
+		service: s,
+		logger:  logger,
+	}
 }
 
 type ProviderRequest struct {
@@ -29,6 +34,7 @@ type ProviderRequest struct {
 func (h *ProviderHandler) CreateProvider(c *gin.Context) {
 	var req ProviderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("Failed to bind JSON for CreateProvider", slog.Any("error", err))
 		utils.WriteError(c, http.StatusBadRequest, "Invalid input: "+err.Error())
 		return
 	}
@@ -41,6 +47,7 @@ func (h *ProviderHandler) CreateProvider(c *gin.Context) {
 
 	newProvider, err := h.service.CreateProvider(provider)
 	if err != nil {
+		h.logger.Error("Failed to create provider in service", slog.Any("error", err))
 		utils.WriteError(c, http.StatusInternalServerError, "Failed to create provider")
 		return
 	}
@@ -51,6 +58,7 @@ func (h *ProviderHandler) CreateProvider(c *gin.Context) {
 func (h *ProviderHandler) GetProviders(c *gin.Context) {
 	providers, err := h.service.GetAllProviders()
 	if err != nil {
+		h.logger.Error("Failed to retrieve providers", slog.Any("error", err))
 		utils.WriteError(c, http.StatusInternalServerError, "Failed to retrieve providers")
 		return
 	}
@@ -67,9 +75,11 @@ func (h *ProviderHandler) GetProvider(c *gin.Context) {
 	provider, err := h.service.GetProviderByID(uint(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			h.logger.Info("Provider not found", slog.Uint64("provider_id", id))
 			utils.WriteError(c, http.StatusNotFound, "Provider not found")
 			return
 		}
+		h.logger.Error("Failed to retrieve provider", slog.Uint64("provider_id", id), slog.Any("error", err))
 		utils.WriteError(c, http.StatusInternalServerError, "Failed to retrieve provider")
 		return
 	}
@@ -86,12 +96,14 @@ func (h *ProviderHandler) UpdateProvider(c *gin.Context) {
 
 	var req ProviderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("Failed to bind JSON for UpdateProvider", slog.Uint64("provider_id", id), slog.Any("error", err))
 		utils.WriteError(c, http.StatusBadRequest, "Invalid input: "+err.Error())
 		return
 	}
 
 	providerToUpdate, err := h.service.GetProviderByID(uint(id))
 	if err != nil {
+		h.logger.Info("Attempted to update non-existent provider", slog.Uint64("provider_id", id))
 		utils.WriteError(c, http.StatusNotFound, "Provider not found")
 		return
 	}
@@ -102,6 +114,7 @@ func (h *ProviderHandler) UpdateProvider(c *gin.Context) {
 
 	updatedProvider, err := h.service.UpdateProvider(providerToUpdate)
 	if err != nil {
+		h.logger.Error("Failed to update provider", slog.Uint64("provider_id", id), slog.Any("error", err))
 		utils.WriteError(c, http.StatusInternalServerError, "Failed to update provider")
 		return
 	}
@@ -117,6 +130,7 @@ func (h *ProviderHandler) DeleteProvider(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteProvider(uint(id)); err != nil {
+		h.logger.Error("Failed to delete provider", slog.Uint64("provider_id", id), slog.Any("error", err))
 		utils.WriteError(c, http.StatusInternalServerError, "Failed to delete provider")
 		return
 	}

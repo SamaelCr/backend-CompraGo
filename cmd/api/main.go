@@ -63,13 +63,13 @@ func main() {
 	// --- Dependencias de Órdenes ---
 	orderRepo := repository.NewOrderRepository(db)
 	orderService := service.NewOrderService(orderRepo, counterService)
-	// Se inyecta el logger en el OrderHandler
 	orderHandler := handlers.NewOrderHandler(orderService, logger)
 
 	// --- Dependencias de Proveedores ---
 	providerRepo := repository.NewProviderRepository(db)
 	providerService := service.NewProviderService(providerRepo)
-	providerHandler := handlers.NewProviderHandler(providerService)
+	// MODIFICACIÓN: Inyectar el logger en el ProviderHandler
+	providerHandler := handlers.NewProviderHandler(providerService, logger)
 
 	// --- Dependencias de Datos Maestros (Unidades, Cargos, Funcionarios) ---
 	masterDataRepo := repository.NewMasterDataRepository(db)

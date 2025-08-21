@@ -83,24 +83,28 @@ func (s *masterDataService) DeletePosition(id uint) error {
 	return s.repo.DeletePosition(id)
 }
 func (s *masterDataService) CreateOfficial(off *models.Official) (*models.Official, error) {
-	err := s.repo.CreateOfficial(off)
-	return off, err
+	// 1. Crea el registro. El `off.ID` se poblará automáticamente.
+	if err := s.repo.CreateOfficial(off); err != nil {
+		return nil, err
+	}
+	// 2. Usa el nuevo ID para obtener el registro completo con sus relaciones.
+	return s.repo.GetOfficialByID(off.ID)
 }
+
 func (s *masterDataService) GetAllOfficials() ([]models.Official, error) {
 	return s.repo.GetAllOfficials()
 }
+
 func (s *masterDataService) UpdateOfficial(id uint, req *models.Official) (*models.Official, error) {
 	req.ID = id
-	err := s.repo.UpdateOfficial(req)
-	// Recargar para obtener los datos de Unit y Position
-	updated, _ := s.repo.GetAllOfficials() // Simplificación, idealmente sería GetByID
-	for _, o := range updated {
-		if o.ID == id {
-			return &o, err
-		}
+	// 1. Guarda los cambios en la base de datos.
+	if err := s.repo.UpdateOfficial(req); err != nil {
+		return nil, err
 	}
-	return req, err
+	// 2. Obtiene y devuelve la versión actualizada y completa del registro.
+	return s.repo.GetOfficialByID(id)
 }
+
 func (s *masterDataService) DeleteOfficial(id uint) error {
 	return s.repo.DeleteOfficial(id)
 }
