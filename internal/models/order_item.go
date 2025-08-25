@@ -12,4 +12,5 @@ type OrderItem struct {
 	Quantity    float64        `gorm:"not null" json:"quantity"`
 	UnitPrice   float64        `gorm:"not null" json:"unitPrice"`
 	Total       float64        `gorm:"not null" json:"total"` // Calculado: Quantity * UnitPrice
+	AppliesIVA  bool           `gorm:"default:true;not null" json:"appliesIva"`
 }

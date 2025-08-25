@@ -12,7 +12,8 @@ func New(
 	providerHandler *handlers.ProviderHandler,
 	masterDataHandler *handlers.MasterDataHandler,
 	accountPointHandler *handlers.AccountPointHandler,
-	productHandler *handlers.ProductHandler, // Asegúrate de que este parámetro esté aquí
+	productHandler *handlers.ProductHandler,
+	settingHandler *handlers.SettingHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -31,6 +32,8 @@ func New(
 			orders.GET("", orderHandler.GetOrdersHandler)
 			orders.GET("/:id", orderHandler.GetOrderByIdHandler)
 			orders.GET("/:id/pdf", orderHandler.GenerateOrderPDFHandler)
+			// NUEVA RUTA
+			orders.GET("/by-account-point/:id", orderHandler.GetOrdersByAccountPointHandler)
 		}
 
 		accountPoints := api.Group("/account-points")
@@ -42,7 +45,6 @@ func New(
 			accountPoints.DELETE("/:id", accountPointHandler.DeleteAccountPoint)
 		}
 
-		// Rutas para Productos
 		products := api.Group("/products")
 		{
 			products.GET("", productHandler.GetProducts)
@@ -54,6 +56,12 @@ func New(
 		admin := api.Group("/admin")
 		{
 			admin.POST("/reset-counters", adminHandler.ResetCountersHandler)
+		}
+
+		settings := api.Group("/settings")
+		{
+			settings.GET("/iva", settingHandler.GetIVAPercentage)
+			settings.PUT("/iva", settingHandler.UpdateIVAPercentage)
 		}
 
 		providers := api.Group("/providers")

@@ -13,21 +13,29 @@ import (
 
 type OrderService interface {
 	CreateOrder(order *models.Order) (*models.Order, error)
-	GetAllOrders() ([]models.Order, error)
+	FindAllOrders(params repository.OrderSearchParams) (*PaginatedOrdersResponse, error)
 	GetOrderById(id uint) (*models.Order, error)
+	GetOrdersByAccountPointID(apID uint) ([]models.Order, error) // NUEVO
 	GenerateOrderPDF(id uint) (*bytes.Buffer, error)
+}
+
+type PaginatedOrdersResponse struct {
+	Orders []models.Order `json:"orders"`
+	Total  int64          `json:"total"`
 }
 
 type orderService struct {
 	repo           repository.OrderRepository
 	counterService CounterService
+	settingService SettingService
 	db             *gorm.DB
 }
 
-func NewOrderService(repo repository.OrderRepository, counterService CounterService, db *gorm.DB) OrderService {
+func NewOrderService(repo repository.OrderRepository, counterService CounterService, settingService SettingService, db *gorm.DB) OrderService {
 	return &orderService{
 		repo:           repo,
 		counterService: counterService,
+		settingService: settingService,
 		db:             db,
 	}
 }
@@ -50,14 +58,26 @@ func (s *orderService) CreateOrder(order *models.Order) (*models.Order, error) {
 	}
 	order.MemoNumber = newMemoNumber
 
+	ivaPercentage, err := s.settingService.GetIVAPercentage()
+	if err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("could not retrieve IVA percentage: %w", err)
+	}
+	order.IvaPercentage = ivaPercentage
+	ivaRate := ivaPercentage / 100.0
+
 	var baseAmount float64
+	var ivaBaseAmount float64
 	for i := range order.Items {
 		item := &order.Items[i]
 		item.Total = item.Quantity * item.UnitPrice
 		baseAmount += item.Total
+		if item.AppliesIVA {
+			ivaBaseAmount += item.Total
+		}
 	}
 	order.BaseAmount = baseAmount
-	order.IvaAmount = baseAmount * 0.16
+	order.IvaAmount = ivaBaseAmount * ivaRate
 	order.TotalAmount = order.BaseAmount + order.IvaAmount
 
 	createdOrder, err := s.repo.CreateOrderInTx(tx, order)
@@ -73,12 +93,24 @@ func (s *orderService) CreateOrder(order *models.Order) (*models.Order, error) {
 	return createdOrder, nil
 }
 
-func (s *orderService) GetAllOrders() ([]models.Order, error) {
-	return s.repo.GetAllOrders()
+func (s *orderService) FindAllOrders(params repository.OrderSearchParams) (*PaginatedOrdersResponse, error) {
+	orders, total, err := s.repo.FindAll(params)
+	if err != nil {
+		return nil, err
+	}
+	return &PaginatedOrdersResponse{
+		Orders: orders,
+		Total:  total,
+	}, nil
 }
 
 func (s *orderService) GetOrderById(id uint) (*models.Order, error) {
 	return s.repo.GetOrderById(id)
+}
+
+// NUEVA FUNCIÓN
+func (s *orderService) GetOrdersByAccountPointID(apID uint) ([]models.Order, error) {
+	return s.repo.GetOrdersByAccountPointID(apID)
 }
 
 func (s *orderService) GenerateOrderPDF(id uint) (*bytes.Buffer, error) {
@@ -131,8 +163,10 @@ func (s *orderService) GenerateOrderPDF(id uint) (*bytes.Buffer, error) {
 	pdf.SetFont("Arial", "B", 12)
 	pdf.Cell(0, 10, "Resumen Monetario")
 	pdf.Ln(8)
+
+	ivaLabel := fmt.Sprintf("Monto IVA (%.2f%%):", order.IvaPercentage)
 	writeRow("Monto Base:", fmt.Sprintf("%.2f", order.BaseAmount))
-	writeRow("Monto IVA (16%):", fmt.Sprintf("%.2f", order.IvaAmount))
+	writeRow(ivaLabel, fmt.Sprintf("%.2f", order.IvaAmount))
 	writeRow("Monto Total:", fmt.Sprintf("%.2f", order.TotalAmount))
 
 	var buf bytes.Buffer

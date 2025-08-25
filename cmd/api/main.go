@@ -27,7 +27,7 @@ func main() {
 	} else {
 		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	}
-	slog.SetDefault(logger) // Establecer como logger global por si alguna dependencia lo usa
+	slog.SetDefault(logger)
 
 	// 2. Cargar Configuración
 	cfg := config.Load()
@@ -38,6 +38,13 @@ func main() {
 
 	// 3. Conectar a la Base de Datos
 	db := storage.MustInit(cfg.DSN, logger)
+
+	// CAMBIO: Manejar la migración de la tabla 'products' explícitamente
+	logger.Info("Dropping products table if it exists to apply new structure...")
+	if err := db.Migrator().DropTable(&models.Product{}); err != nil {
+		logger.Error("failed to drop products table", slog.Any("error", err))
+		// No salimos en caso de error, puede que la tabla no exista
+	}
 
 	// 4. Ejecutar Migraciones
 	logger.Info("Running migrations...")
@@ -51,39 +58,43 @@ func main() {
 		&models.Position{},
 		&models.Official{},
 		&models.AccountPoint{},
+		&models.Setting{},
 	); err != nil {
 		logger.Error("failed to migrate database", slog.Any("error", err))
 		os.Exit(1)
 	}
 
-	// 5. Inyección de Dependencias (ensamblar todas las capas)
+	logger.Info("Checking for old orders without IVA percentage...")
+	if err := db.Model(&models.Order{}).Where("iva_percentage = 0 OR iva_percentage IS NULL").Update("iva_percentage", 16).Error; err != nil {
+		logger.Error("failed to update old orders with default IVA", slog.Any("error", err))
+		os.Exit(1)
+	}
 
-	// --- Dependencias de Contadores y Admin ---
+	// 5. Inyección de Dependencias
 	counterRepo := repository.NewCounterRepository(db)
 	counterService := service.NewCounterService(counterRepo)
 	adminHandler := handlers.NewAdminHandler(counterService)
 
-	// --- Dependencias de Puntos de Cuenta ---
 	accountPointRepo := repository.NewAccountPointRepository(db)
 	accountPointService := service.NewAccountPointService(accountPointRepo, counterService)
 	accountPointHandler := handlers.NewAccountPointHandler(accountPointService, logger)
 
-	// --- Dependencias de Órdenes ---
+	settingRepo := repository.NewSettingRepository(db)
+	settingService := service.NewSettingService(settingRepo)
+	settingHandler := handlers.NewSettingHandler(settingService)
+
 	orderRepo := repository.NewOrderRepository(db)
-	orderService := service.NewOrderService(orderRepo, counterService, db)
+	orderService := service.NewOrderService(orderRepo, counterService, settingService, db)
 	orderHandler := handlers.NewOrderHandler(orderService, logger)
 
-	// --- Dependencias de Proveedores ---
 	providerRepo := repository.NewProviderRepository(db)
 	providerService := service.NewProviderService(providerRepo)
 	providerHandler := handlers.NewProviderHandler(providerService, logger)
 
-	// --- Dependencias de Datos Maestros (Unidades, Cargos, Funcionarios) ---
 	masterDataRepo := repository.NewMasterDataRepository(db)
 	masterDataService := service.NewMasterDataService(masterDataRepo)
 	masterDataHandler := handlers.NewMasterDataHandler(masterDataService)
 
-	// --- Dependencias de Productos ---
 	productRepo := repository.NewProductRepository(db)
 	productService := service.NewProductService(productRepo)
 	productHandler := handlers.NewProductHandler(productService)
@@ -91,16 +102,13 @@ func main() {
 	// 6. Configurar y Iniciar el Router
 	gin.SetMode(ginMode)
 
-	// Se pasan todos los handlers al constructor del router
-	r := router.New(orderHandler, adminHandler, providerHandler, masterDataHandler, accountPointHandler, productHandler)
+	r := router.New(orderHandler, adminHandler, providerHandler, masterDataHandler, accountPointHandler, productHandler, settingHandler)
 
-	// Leer el puerto desde el .env
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080" // Valor por defecto
+		port = "8080"
 	}
 
-	// Iniciar el servidor
 	serverAddress := fmt.Sprintf(":%s", port)
 	logger.Info("Starting server",
 		slog.String("gin_mode", ginMode),

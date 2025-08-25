@@ -42,5 +42,6 @@ func (r *productRepository) Update(product *models.Product) error {
 }
 
 func (r *productRepository) Delete(id uint) error {
-	return r.db.Delete(&models.Product{}, id).Error
+	// CAMBIO: Usar Unscoped() para forzar un borrado físico (hard delete)
+	return r.db.Unscoped().Delete(&models.Product{}, id).Error
 }

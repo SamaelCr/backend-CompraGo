@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/toor/backend/internal/models"
+	"github.com/toor/backend/internal/repository"
 	"github.com/toor/backend/internal/service"
 	"github.com/toor/backend/internal/utils"
 	"gorm.io/gorm"
@@ -26,7 +27,6 @@ func NewOrderHandler(s service.OrderService, logger *slog.Logger) *OrderHandler 
 	}
 }
 
-// CreateOrderRequest define la estructura que esperamos del cliente
 type CreateOrderRequest struct {
 	MemoDate            models.DateOnly    `json:"memoDate"`
 	RequestingUnit      string             `json:"requestingUnit"`
@@ -38,7 +38,7 @@ type CreateOrderRequest struct {
 	BudgetDate          models.DateOnly    `json:"budgetDate"`
 	DeliveryTime        string             `json:"deliveryTime"`
 	OfferQuality        string             `json:"offerQuality"`
-	PriceInquiryType    string             `json:"priceInquiryType"` // NUEVO CAMPO
+	PriceInquiryType    string             `json:"priceInquiryType"`
 	Observations        string             `json:"observations"`
 	HasIvaRetention     bool               `json:"hasIvaRetention"`
 	HasIslr             bool               `json:"hasIslr"`
@@ -55,7 +55,6 @@ func (h *OrderHandler) CreateOrderHandler(c *gin.Context) {
 		return
 	}
 
-	// Mapeamos el DTO de la solicitud a nuestro modelo de dominio
 	orderToCreate := &models.Order{
 		MemoDate:            req.MemoDate,
 		RequestingUnit:      req.RequestingUnit,
@@ -67,7 +66,7 @@ func (h *OrderHandler) CreateOrderHandler(c *gin.Context) {
 		BudgetDate:          req.BudgetDate,
 		DeliveryTime:        req.DeliveryTime,
 		OfferQuality:        req.OfferQuality,
-		PriceInquiryType:    req.PriceInquiryType, // NUEVO CAMPO
+		PriceInquiryType:    req.PriceInquiryType,
 		Observations:        req.Observations,
 		HasIvaRetention:     req.HasIvaRetention,
 		HasIslr:             req.HasIslr,
@@ -87,13 +86,31 @@ func (h *OrderHandler) CreateOrderHandler(c *gin.Context) {
 }
 
 func (h *OrderHandler) GetOrdersHandler(c *gin.Context) {
-	orders, err := h.service.GetAllOrders()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+
+	params := repository.OrderSearchParams{
+		Keyword:  c.Query("keyword"),
+		Provider: c.Query("provider"),
+		DateFrom: c.Query("dateFrom"),
+		DateTo:   c.Query("dateTo"),
+		Limit:    limit,
+		Offset:   (page - 1) * limit,
+	}
+
+	response, err := h.service.FindAllOrders(params)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, "Failed to retrieve orders")
 		return
 	}
 
-	utils.WriteJSON(c, http.StatusOK, orders)
+	utils.WriteJSON(c, http.StatusOK, response)
 }
 
 func (h *OrderHandler) GetOrderByIdHandler(c *gin.Context) {
@@ -115,6 +132,24 @@ func (h *OrderHandler) GetOrderByIdHandler(c *gin.Context) {
 	}
 
 	utils.WriteJSON(c, http.StatusOK, order)
+}
+
+// NUEVO HANDLER
+func (h *OrderHandler) GetOrdersByAccountPointHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.WriteError(c, http.StatusBadRequest, "Invalid account point ID")
+		return
+	}
+
+	orders, err := h.service.GetOrdersByAccountPointID(uint(id))
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, "Failed to retrieve orders for account point")
+		return
+	}
+
+	utils.WriteJSON(c, http.StatusOK, orders)
 }
 
 func (h *OrderHandler) GenerateOrderPDFHandler(c *gin.Context) {

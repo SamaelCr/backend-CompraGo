@@ -27,7 +27,7 @@ type Order struct {
 	BudgetDate       DateOnly `json:"budgetDate"`
 	DeliveryTime     string   `json:"deliveryTime"`
 	OfferQuality     string   `json:"offerQuality"`
-	PriceInquiryType string   `json:"priceInquiryType"` // Campo añadido
+	PriceInquiryType string   `json:"priceInquiryType"`
 
 	// --- Campos Adicionales ---
 	Observations    string `gorm:"type:text" json:"observations"`
@@ -47,9 +47,12 @@ type Order struct {
 	Items []OrderItem `gorm:"foreignKey:OrderID" json:"items"`
 
 	// --- Montos Calculados ---
-	BaseAmount  float64 `json:"baseAmount"`
-	IvaAmount   float64 `json:"ivaAmount"`
-	TotalAmount float64 `json:"totalAmount"`
+	BaseAmount float64 `json:"baseAmount"`
+	IvaAmount  float64 `json:"ivaAmount"`
+	// CAMBIO: Añadido `not null` para asegurar la integridad de los datos.
+	// El valor por defecto se establecerá en la migración y en la lógica de servicio.
+	IvaPercentage float64 `gorm:"not null" json:"ivaPercentage"`
+	TotalAmount   float64 `json:"totalAmount"`
 
 	Status string `gorm:"default:'En Proceso'" json:"status"`
 }
