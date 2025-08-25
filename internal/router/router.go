@@ -11,6 +11,8 @@ func New(
 	adminHandler *handlers.AdminHandler,
 	providerHandler *handlers.ProviderHandler,
 	masterDataHandler *handlers.MasterDataHandler,
+	accountPointHandler *handlers.AccountPointHandler,
+	productHandler *handlers.ProductHandler, // Asegúrate de que este parámetro esté aquí
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -23,21 +25,37 @@ func New(
 	{
 		api.GET("/ping", handlers.Ping)
 
-		// Rutas de Órdenes
 		orders := api.Group("/orders")
 		{
 			orders.POST("", orderHandler.CreateOrderHandler)
 			orders.GET("", orderHandler.GetOrdersHandler)
 			orders.GET("/:id", orderHandler.GetOrderByIdHandler)
+			orders.GET("/:id/pdf", orderHandler.GenerateOrderPDFHandler)
 		}
 
-		// Rutas de Administración
+		accountPoints := api.Group("/account-points")
+		{
+			accountPoints.POST("", accountPointHandler.CreateAccountPoint)
+			accountPoints.GET("", accountPointHandler.GetAccountPoints)
+			accountPoints.GET("/:id", accountPointHandler.GetAccountPoint)
+			accountPoints.PUT("/:id", accountPointHandler.UpdateAccountPoint)
+			accountPoints.DELETE("/:id", accountPointHandler.DeleteAccountPoint)
+		}
+
+		// Rutas para Productos
+		products := api.Group("/products")
+		{
+			products.GET("", productHandler.GetProducts)
+			products.POST("", productHandler.CreateProduct)
+			products.PUT("/:id", productHandler.UpdateProduct)
+			products.DELETE("/:id", productHandler.DeleteProduct)
+		}
+
 		admin := api.Group("/admin")
 		{
 			admin.POST("/reset-counters", adminHandler.ResetCountersHandler)
 		}
 
-		// Rutas de Proveedores
 		providers := api.Group("/providers")
 		{
 			providers.POST("", providerHandler.CreateProvider)
@@ -49,22 +67,18 @@ func New(
 
 		master := api.Group("/master-data")
 		{
-			// Units
 			master.GET("/units", masterDataHandler.GetUnits)
 			master.POST("/units", masterDataHandler.CreateUnit)
 			master.PUT("/units/:id", masterDataHandler.UpdateUnit)
 			master.DELETE("/units/:id", masterDataHandler.DeleteUnit)
-			// Positions
 			master.GET("/positions", masterDataHandler.GetPositions)
 			master.POST("/positions", masterDataHandler.CreatePosition)
 			master.PUT("/positions/:id", masterDataHandler.UpdatePosition)
 			master.DELETE("/positions/:id", masterDataHandler.DeletePosition)
-			// Officials
 			master.GET("/officials", masterDataHandler.GetOfficials)
 			master.POST("/officials", masterDataHandler.CreateOfficial)
 			master.PUT("/officials/:id", masterDataHandler.UpdateOfficial)
 			master.DELETE("/officials/:id", masterDataHandler.DeleteOfficial)
-
 		}
 	}
 

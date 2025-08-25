@@ -43,11 +43,14 @@ func main() {
 	logger.Info("Running migrations...")
 	if err := db.AutoMigrate(
 		&models.Order{},
+		&models.OrderItem{},
+		&models.Product{},
 		&models.SystemCounter{},
 		&models.Provider{},
 		&models.Unit{},
 		&models.Position{},
 		&models.Official{},
+		&models.AccountPoint{},
 	); err != nil {
 		logger.Error("failed to migrate database", slog.Any("error", err))
 		os.Exit(1)
@@ -60,15 +63,19 @@ func main() {
 	counterService := service.NewCounterService(counterRepo)
 	adminHandler := handlers.NewAdminHandler(counterService)
 
+	// --- Dependencias de Puntos de Cuenta ---
+	accountPointRepo := repository.NewAccountPointRepository(db)
+	accountPointService := service.NewAccountPointService(accountPointRepo, counterService)
+	accountPointHandler := handlers.NewAccountPointHandler(accountPointService, logger)
+
 	// --- Dependencias de Órdenes ---
 	orderRepo := repository.NewOrderRepository(db)
-	orderService := service.NewOrderService(orderRepo, counterService)
+	orderService := service.NewOrderService(orderRepo, counterService, db)
 	orderHandler := handlers.NewOrderHandler(orderService, logger)
 
 	// --- Dependencias de Proveedores ---
 	providerRepo := repository.NewProviderRepository(db)
 	providerService := service.NewProviderService(providerRepo)
-	// MODIFICACIÓN: Inyectar el logger en el ProviderHandler
 	providerHandler := handlers.NewProviderHandler(providerService, logger)
 
 	// --- Dependencias de Datos Maestros (Unidades, Cargos, Funcionarios) ---
@@ -76,11 +83,16 @@ func main() {
 	masterDataService := service.NewMasterDataService(masterDataRepo)
 	masterDataHandler := handlers.NewMasterDataHandler(masterDataService)
 
+	// --- Dependencias de Productos ---
+	productRepo := repository.NewProductRepository(db)
+	productService := service.NewProductService(productRepo)
+	productHandler := handlers.NewProductHandler(productService)
+
 	// 6. Configurar y Iniciar el Router
 	gin.SetMode(ginMode)
 
 	// Se pasan todos los handlers al constructor del router
-	r := router.New(orderHandler, adminHandler, providerHandler, masterDataHandler)
+	r := router.New(orderHandler, adminHandler, providerHandler, masterDataHandler, accountPointHandler, productHandler)
 
 	// Leer el puerto desde el .env
 	port := os.Getenv("PORT")
